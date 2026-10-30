@@ -28,7 +28,7 @@ cd frontend && npm install && npm run lint
 
 ## Load the data
 
-Requires the stack running and `KAGGLE_USERNAME` and `KAGGLE_KEY` in `.env`. Takes about 5 minutes.
+Requires the stack running and `KAGGLE_USERNAME` and `KAGGLE_KEY` in `.env`. Takes about 6 minutes.
 
 ```bash
 cd backend
@@ -42,6 +42,8 @@ See [docs/data_dictionary.md](docs/data_dictionary.md) and [docs/data_quality.md
 
 - [LinkedIn Job Postings](https://www.kaggle.com/datasets/arshkon/linkedin-job-postings) by arshkon, CC BY-SA 4.0
 - [India Tech Job Market 2026](https://www.kaggle.com/datasets/shree0910/india-tech-job-market-2026-23k-records) by shree0910, CC BY-SA 4.0
+
+- [Naukri monthly scrapes, May-Aug 2023](https://www.kaggle.com/datasets/riteshmn/naukri-july-2023-jobs-data) by riteshmn, Apache 2.0
 
 The datasets are not stored in this repository. They were cleaned and normalized as described in the data dictionary.
 

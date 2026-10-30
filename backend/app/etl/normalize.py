@@ -55,8 +55,55 @@ CITY_ALIASES = {
     "madras": "Chennai",
     "calcutta": "Kolkata",
     "secunderabad": "Hyderabad",
+    "mumbai suburban": "Mumbai",
+    "cochin": "Kochi",
+    "trivandrum": "Thiruvananthapuram",
+    "mysore": "Mysuru",
+    "baroda": "Vadodara",
+    "nasik": "Nashik",
+    "mangalore": "Mangaluru",
+    "calicut": "Kozhikode",
+    "panjim": "Panaji",
+    "trichy": "Tiruchirappalli",
+    "tiruchirapalli": "Tiruchirappalli",
+    "vizag": "Visakhapatnam",
+    "trichur": "Thrissur",
+    "belgaum": "Belagavi",
 }
-NON_CITY_TOKENS = {"", "india", "ncr", "remote", "hybrid", "not available", "pan india"}
+# States appear next to their city ("Pune, Maharashtra"), so dropping them loses nothing.
+# Goa, Delhi and Chandigarh are left out because they are also used as the city.
+INDIAN_STATES = {
+    "andhra pradesh",
+    "assam",
+    "bihar",
+    "chhattisgarh",
+    "gujarat",
+    "haryana",
+    "himachal pradesh",
+    "jammu & kashmir",
+    "jharkhand",
+    "karnataka",
+    "kerala",
+    "madhya pradesh",
+    "maharashtra",
+    "odisha",
+    "punjab",
+    "rajasthan",
+    "tamil nadu",
+    "telangana",
+    "uttar pradesh",
+    "uttarakhand",
+    "west bengal",
+}
+NON_CITY_TOKENS = {
+    "",
+    "india",
+    "ncr",
+    "remote",
+    "hybrid",
+    "not available",
+    "pan india",
+} | INDIAN_STATES
 METRO_AREA = re.compile(r"^Greater | Metropolitan Area$| Metroplex$| Bay Area$| Area$")
 
 LINKEDIN_LEVELS = {
@@ -98,6 +145,7 @@ class JobRecord:
     url: str | None = None
     listed_at: datetime | None = None
     original_listed_at: datetime | None = None
+    first_seen_at: datetime | None = None  # defaults to fetched_at
 
 
 def clean(value: Any) -> Any:
@@ -142,6 +190,8 @@ def parse_india_location(raw: str | None) -> tuple[list[str], bool]:
         return [], False
     text = re.sub(r"\(.*?\)", " ", raw).lower()
     text = re.sub(r"\bhybrid\s*-\s*", "", text)
+    # a temporary work-from-home notice, not a permanent remote job
+    text = re.sub(r"temp\.?\s*wfh(\s*due to covid)?\s*-?\s*", "", text)
     is_remote = "remote" in text
     cities: list[str] = []
     for token in re.split(r"[,/]", text):
@@ -194,6 +244,41 @@ def plausible_salary(
     if not floor <= mid <= ceiling:
         return None, None, None
     return low, high, mid
+
+
+_SALARY_UNITS = {"lac": 100_000, "lacs": 100_000, "cr": 10_000_000}
+_NAUKRI_SALARY = re.compile(
+    r"([\d.,]+)\s*(Lacs?|Cr)?(?:\s*-\s*([\d.,]+)\s*(Lacs?|Cr)?)?\s*(PA|/month)", re.IGNORECASE
+)
+
+
+def parse_naukri_salary(raw: str | None) -> tuple[float, float] | None:
+    """Parse text like '10-20 Lacs PA' or '15,000/month' into annual rupees (low, high)."""
+    text = re.sub(r"\s*\(.*?\)", "", raw or "").strip()
+    match = _NAUKRI_SALARY.fullmatch(text)
+    if not match:
+        return None
+    low_text, low_unit, high_text, high_unit, period = match.groups()
+    try:
+        low_number = float(low_text.replace(",", ""))
+        high_number = float(high_text.replace(",", "")) if high_text else low_number
+    except ValueError:
+        return None
+    # '50,000-2.5 Lacs' is rupees then lakhs, but '1-1.75 Cr' shares one unit
+    if high_text and not low_unit and high_unit and low_number < 1000:
+        low_unit = high_unit
+    low = low_number * _SALARY_UNITS.get((low_unit or "").lower(), 1)
+    high = high_number * _SALARY_UNITS.get((high_unit or low_unit or "").lower(), 1)
+    if low > high:
+        return None
+    months = 12 if period.lower() == "/month" else 1
+    return low * months, high * months
+
+
+def parse_years_range(raw: str | None) -> tuple[float, float] | None:
+    """Parse '3-7 Yrs'. Spreadsheet-damaged values like '5 Aug - 7 Aug' return None."""
+    match = re.fullmatch(r"(\d+)\s*-\s*(\d+)\s*Yrs?", raw or "")
+    return (float(match.group(1)), float(match.group(2))) if match else None
 
 
 def company_key(name: str) -> str:

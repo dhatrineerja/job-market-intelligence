@@ -2,12 +2,14 @@ import math
 
 import pytest
 
-from app.etl.naukri import _listed_at
+from app.etl.naukri import listed_at_from_id as _listed_at
 from app.etl.normalize import (
     clean,
     experience_level_from_years,
     parse_india_location,
+    parse_naukri_salary,
     parse_us_location,
+    parse_years_range,
     plausible_salary,
     role_family,
 )
@@ -49,6 +51,24 @@ def test_parse_india_location_splits_and_normalizes_cities():
 def test_parse_india_location_handles_aliases_and_duplicates():
     cities, _ = parse_india_location("Hybrid - Gurugram, Delhi / NCR, New Delhi")
     assert cities == ["Gurgaon", "Delhi"]
+
+
+def test_parse_india_location_drops_states_and_merges_spellings():
+    assert parse_india_location("Pune, Maharashtra, Bangalore/ Bengaluru, Karnataka") == (
+        ["Pune", "Bangalore"],
+        False,
+    )
+    assert parse_india_location("Cochin, Kochi, Trivandrum, Mysore")[0] == [
+        "Kochi",
+        "Thiruvananthapuram",
+        "Mysuru",
+    ]
+    assert parse_india_location("Maharashtra") == ([], False)
+
+
+def test_parse_india_location_ignores_temporary_wfh_notice():
+    assert parse_india_location("Temp. WFH - Hyderabad") == (["Hyderabad"], False)
+    assert parse_india_location("Temp. WFH due to covid, Pune")[0] == ["Pune"]
 
 
 def test_parse_india_location_flags_remote():
@@ -102,6 +122,36 @@ def test_clean_handles_nan_and_null_bytes():
     assert clean(math.nan) is None
     assert clean("  a\x00b ") == "ab"
     assert clean("   ") is None
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("10-20 Lacs PA", (1_000_000, 2_000_000)),
+        ("3.5-4.5 Lacs PA", (350_000, 450_000)),
+        ("12 Lacs PA", (1_200_000, 1_200_000)),
+        ("15-30 Lacs PA (Including Variable: 10%)", (1_500_000, 3_000_000)),
+        ("50,000-2.5 Lacs PA", (50_000, 250_000)),
+        ("50,000-60,000 PA", (50_000, 60_000)),
+        ("1-1.75 Cr PA", (10_000_000, 17_500_000)),
+        ("40 Lacs-1 Cr PA", (4_000_000, 10_000_000)),
+        ("15,000/month", (180_000, 180_000)),
+        ("Not disclosed", None),
+        ("Unpaid", None),
+        ("Less than 5,000 PA", None),
+        ("9.5 Cr and above PA", None),
+        ("20-10 Lacs PA", None),
+        (None, None),
+    ],
+)
+def test_parse_naukri_salary(raw, expected):
+    assert parse_naukri_salary(raw) == expected
+
+
+def test_parse_years_range():
+    assert parse_years_range("3-7 Yrs") == (3.0, 7.0)
+    assert parse_years_range("5 Aug - 7 Aug") is None
+    assert parse_years_range(None) is None
 
 
 def test_naukri_listed_at_parses_id_prefix():

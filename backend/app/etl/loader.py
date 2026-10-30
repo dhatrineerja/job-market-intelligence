@@ -107,7 +107,7 @@ def _job_row(record: JobRecord, company_ids: dict[str, int]) -> dict[str, Any]:
         "url": record.url,
         "listed_at": record.listed_at,
         "original_listed_at": record.original_listed_at,
-        "first_seen_at": record.fetched_at,
+        "first_seen_at": record.first_seen_at or record.fetched_at,
         "last_seen_at": record.fetched_at,
     }
 

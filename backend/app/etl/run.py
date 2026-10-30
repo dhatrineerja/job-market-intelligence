@@ -6,10 +6,11 @@ from pathlib import Path
 
 from app.config import settings
 from app.db import engine
-from app.etl import linkedin, naukri, quality
+from app.etl import linkedin, naukri, naukri_2023, quality
 from app.etl.loader import load
 
-SOURCES = [linkedin, naukri]
+# Newest data last: when the same job appears in two datasets the later load wins
+SOURCES = [linkedin, naukri_2023, naukri]
 
 
 def download(dataset: str) -> Path:
@@ -24,11 +25,11 @@ def download(dataset: str) -> Path:
 def main() -> None:
     stats: dict[str, Counter] = {}
     for source in SOURCES:
-        counter = stats.setdefault(source.SOURCE, Counter())
-        records = list(source.read(download(source.DATASET), counter))
+        counter = stats.setdefault(source.NAME, Counter())
+        records = list(source.read([download(slug) for slug in source.DATASETS], counter))
         with engine.begin() as conn:
             load(conn, records)
-        print(f"{source.SOURCE}: loaded {len(records):,} jobs, {dict(counter)}")
+        print(f"{source.NAME}: loaded {len(records):,} jobs, {dict(counter)}")
 
     with engine.connect() as conn:
         print(f"report: {quality.write_report(conn, stats)}")

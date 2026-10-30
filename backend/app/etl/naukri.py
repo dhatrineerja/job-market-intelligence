@@ -18,15 +18,16 @@ from app.etl.normalize import (
     clean,
     experience_level_from_years,
     parse_india_location,
+    parse_naukri_salary,
     plausible_salary,
 )
 
 SOURCE = "naukri"
-DATASET = "shree0910/india-tech-job-market-2026-23k-records/versions/1"
+NAME = "naukri_2026"
+DATASETS = ["shree0910/india-tech-job-market-2026-23k-records/versions/1"]
 FILE_NAME = "indian_tech_jobs_2026.csv"
 
 SNAPSHOT_AT = datetime(2026, 6, 10, tzinfo=UTC)
-RUPEES_PER_LAKH = 100_000
 
 # job_description is stored on jobs. The rest are the dataset author's derived columns.
 RAW_EXCLUDED = {
@@ -43,15 +44,15 @@ RAW_EXCLUDED = {
 URL_ID = re.compile(r"-(\d{12})(?:\?|$)")
 
 
-def _listed_at(source_id: str) -> datetime | None:
+def listed_at_from_id(source_id: str) -> datetime | None:
     try:
         return datetime.strptime(source_id[:6], "%d%m%y").replace(tzinfo=UTC)
     except ValueError:
         return None
 
 
-def read(path: Path, stats: Counter) -> Iterator[JobRecord]:
-    frame = pd.read_csv(path / FILE_NAME, low_memory=False, encoding_errors="replace")
+def read(paths: list[Path], stats: Counter) -> Iterator[JobRecord]:
+    frame = pd.read_csv(paths[0] / FILE_NAME, low_memory=False, encoding_errors="replace")
 
     seen: set[str] = set()
     for row in frame.to_dict("records"):
@@ -67,17 +68,9 @@ def read(path: Path, stats: Counter) -> Iterator[JobRecord]:
         seen.add(source_id)
 
         low, high, mid, currency = None, None, None, None
-        salary_raw = row["salary_raw"] or ""
-        if row["salary_disclosed"] and (row["salary_max_lpa"] or 0) > 0:
-            # Monthly pay is stored as if it were yearly lakhs, and crore amounts are misread
-            factor = 12 if "/month" in salary_raw else 1
-            usable = " Cr" not in salary_raw
-            low, high, mid = plausible_salary(
-                row["salary_min_lpa"] * RUPEES_PER_LAKH * factor if usable else None,
-                row["salary_max_lpa"] * RUPEES_PER_LAKH * factor if usable else None,
-                None,
-                "INR",
-            )
+        parsed = parse_naukri_salary(row["salary_raw"])
+        if parsed:
+            low, high, mid = plausible_salary(*parsed, None, "INR")
             currency = "INR" if mid is not None else None
             if mid is None:
                 stats["salaries_rejected"] += 1
@@ -106,5 +99,5 @@ def read(path: Path, stats: Counter) -> Iterator[JobRecord]:
             salary_mid=mid,
             salary_currency=currency,
             url=row["job_url"],
-            listed_at=_listed_at(source_id),
+            listed_at=listed_at_from_id(source_id),
         )

@@ -16,7 +16,8 @@ from app.etl.normalize import (
 )
 
 SOURCE = "linkedin"
-DATASET = "arshkon/linkedin-job-postings/versions/13"
+NAME = "linkedin"
+DATASETS = ["arshkon/linkedin-job-postings/versions/13"]
 
 # description is stored on jobs, so it is not repeated in raw_postings
 RAW_EXCLUDED = {"description"}
@@ -33,7 +34,8 @@ def _annual(value: float | None, factor: int) -> float | None:
     return None if value is None else value * factor
 
 
-def read(path: Path, stats: Counter) -> Iterator[JobRecord]:
+def read(paths: list[Path], stats: Counter) -> Iterator[JobRecord]:
+    path = paths[0]
     postings = pd.read_csv(path / "postings.csv", low_memory=False, encoding_errors="replace")
     companies = pd.read_csv(
         path / "companies" / "companies.csv",

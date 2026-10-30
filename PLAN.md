@@ -66,15 +66,14 @@ Store keys in `.env` (listed in `.gitignore`). Never commit it. Free-tier limits
 **Requirements:** GitHub account; Kaggle, Groq, Gemini keys
 **Done when:** `docker compose up` starts Postgres, API stub and frontend stub; CI passes.
 
-## Checkpoint 1: Data ingestion and warehouse (8 days) - CORE DONE
-**Result:** 144,958 jobs loaded (123,849 US from LinkedIn, 21,109 India from Naukri). Two consecutive loads produced identical tables. See `docs/data_quality.md`.
+## Checkpoint 1: Data ingestion and warehouse (8 days) - DONE
+**Result:** 317,424 jobs loaded: 123,849 US (LinkedIn, 2024) and 193,575 India (Naukri, May-Aug 2023 plus 2026). Two consecutive loads from empty produced identical tables. See `docs/data_quality.md`.
 
 **Findings that change later checkpoints:**
 - LinkedIn has no India data, so the US and India markets are separate and are never pooled on salary
-- India has only 2,409 salary rows, 1,023 of them in data roles: CP5 should pool cities rather than model each city and role, and Skill Salary Premium can only cover common skills
+- India has 28,628 salary rows, but only about 2,200 in data roles (1,211 from 2023, 913 from 2026, almost none from 2024-2025). Most salaries are software and other roles. CP5 should pool cities rather than model each city and role, include a listing-year feature, and treat 2023 and 2026 as different pay levels; Skill Salary Premium can only cover common skills
 - Naukri descriptions are ~87-character snippets: CP2 uses its skill tags, CP6 embeds title + tags for India, and the Job Reality Check uses experience fields rather than description text for India
-
-**Next CP1 task:** add the 2023 Naukri monthly datasets (riteshmn, Apache 2.0) to increase India salary rows. Optional: Jooble collector.
+- A Jooble collector was not built (optional, and its terms are unconfirmed)
 
 **Goal:** clean job data in Postgres.
 - Kaggle one-off ETL (LinkedIn dataset + India datasets), with `source` recorded per row
