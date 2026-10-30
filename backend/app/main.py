@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
 from app.config import settings
+from app.db import engine
 
 app = FastAPI(title="Job Market Intelligence API")
 
@@ -12,12 +13,6 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-)
-
-engine = create_engine(
-    settings.database_url,
-    pool_pre_ping=True,
-    connect_args={"connect_timeout": 3},
 )
 
 

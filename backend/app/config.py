@@ -1,5 +1,9 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
+
+ROOT_ENV_FILE = Path(__file__).resolve().parents[2] / ".env"
 
 
 class Settings(BaseSettings):
@@ -9,8 +13,10 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     postgres_db: str = "jobintel"
     cors_origins: list[str] = ["http://localhost:3000"]
+    kaggle_username: str = ""
+    kaggle_key: str = ""
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=ROOT_ENV_FILE, extra="ignore")
 
     @property
     def database_url(self) -> URL:
