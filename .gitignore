@@ -1,0 +1,29 @@
+# secrets
+.env
+.env.*
+!.env.example
+kaggle.json
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# data and models
+data/*
+!data/.gitkeep
+mlruns/
+*.joblib
+
+# node
+node_modules/
+.next/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
